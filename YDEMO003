@@ -1,0 +1,79 @@
+*&---------------------------------------------------------------------*
+*& Report YDEMO03
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ydemo03.
+
+TYPES: BEGIN OF ty_s_list,
+         box    TYPE xselp.
+         INCLUDE TYPE rkpf AS head RENAMING WITH SUFFIX _h.
+         INCLUDE TYPE resb AS item RENAMING WITH SUFFIX _i.
+TYPES:   rstyp  TYPE rstyp,
+         maktx  TYPE makt-maktx,
+         btext  TYPE t156t-btext,
+         accou  TYPE res_account_d,
+         color  TYPE char3,
+         diffmg TYPE difmg_res.
+TYPES: END OF ty_s_list.
+
+*TYPES tt_s_list    TYPE SORTED TABLE OF ty_s_list WITH NON-UNIQUE KEY werks matnr.
+TYPES tt_s_list    TYPE STANDARD TABLE OF ty_s_list .
+
+DATA:
+  t_list  TYPE TABLE OF ty_s_list,
+  ls_list TYPE ty_s_list.
+
+FIELD-SYMBOLS <gt_any_alv_data> TYPE ANY TABLE.
+FIELD-SYMBOLS <fs_wa>       TYPE any.
+DATA lr_any_alv_data TYPE REF TO data.
+
+"Inicializa las clases para obtener de memoria
+cl_salv_bs_runtime_info=>set(
+  EXPORTING display  = abap_false
+            metadata = abap_true
+            data     = abap_true ).
+
+"(trx IE05)Llamada al programa del que queremos obtener los datos ALV, con variante
+SUBMIT rm07reslh AND RETURN USING SELECTION-SET 'ELP'.
+
+*"(trx FBL1N) Llamada al programa del que queremos obtener los datos ALV, con parámetros
+*SUBMIT rfitemap AND RETURN
+*  WITH kd_lifnr-low EQ '15'
+*  WITH kd_bukrs-low EQ '1000'.
+
+"Obtenemos de memoria los datos del ALV del programa
+cl_salv_bs_runtime_info=>get_data_ref( IMPORTING r_data = lr_any_alv_data ).
+
+"Asignamos los datos
+ASSIGN lr_any_alv_data->* TO <gt_any_alv_data>.
+
+cl_salv_bs_runtime_info=>clear_all( ).
+
+LOOP AT <gt_any_alv_data> ASSIGNING <fs_wa>.
+  MOVE-CORRESPONDING <fs_wa> TO ls_list. "wa_mb5b.
+  INSERT ls_list  INTO TABLE t_list .
+ENDLOOP.
+
+DATA: o_alv     TYPE REF TO cl_salv_table.
+
+
+BREAK-POINT.
+
+
+TRY.
+      cl_salv_table=>factory(
+        IMPORTING
+          r_salv_table = o_alv
+        CHANGING
+          t_table      =  t_list ).
+
+
+       o_alv->display( ).
+
+
+     CATCH cx_root INTO DATA(lx_root).
+
+       BREAK-POINT.
+
+ENDTRY.
